@@ -1,0 +1,4 @@
+---
+applications:
+- name: concourse-db-migration
+  path: build/libs/concourse-db-migration.jar
