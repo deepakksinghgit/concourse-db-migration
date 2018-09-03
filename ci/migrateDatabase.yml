@@ -7,11 +7,7 @@ image_resource:
     tag: '8-jdk'
 
 inputs:
-  - name: pal-tracker
-#  - name: version
-
-#outputs:
-#  - name: build-output
+  - name: concourse-db-migration
 
 run:
   path: bash
