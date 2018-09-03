@@ -1,17 +1,17 @@
 ---
 resources:
-- name: concourse-db-migration
+- name: {{project-name}}
   type: git
   source:
     uri: {{github-repository}}
-    branch: master
+    branch: {{github-branch}}
     private_key: {{github-private-key}}
 
-- name: concourse-db-migration-artifacts
+- name: {{project-name}}-artifacts
   type: s3
   source:
     bucket: {{bucket}}
-    regexp: releases/concourse-db-migration-(.*).jar
+    regexp: releases/{{project-name}}-(.*).jar
     access_key_id: {{access-key-id}}
     secret_access_key: {{secret-access-key}}
     endpoint: {{endpoint}}
@@ -22,7 +22,7 @@ resources:
   type: semver
   source:
     bucket: {{bucket}}
-    key: concourse-db-migration/version
+    key: {{project-name}}/version
     access_key_id: {{access-key-id}}
     secret_access_key: {{secret-access-key}}
     endpoint: {{endpoint}}
@@ -36,33 +36,45 @@ resources:
     username: {{cf-username}}
     password: {{cf-password}}
     organization: {{cf-org}}
-    space: dev
+    space: {{cf-space}}
     skip_cert_check:  true
 
 jobs:
 - name: build
   plan:
-  - get: concourse-db-migration
+  - get: {{project-name}}
     trigger: true
   - get: version
-    params: {pre: SNAPSHOT}
+    params: {bump: patch,pre: SNAPSHOT}
   - task: build
-    file: concourse-db-migration/ci/build.yml
-  - put: concourse-db-migration-artifacts
+    file: {{project-name}}/ci/build.yml
+  - put: {{project-name}}-artifacts
     params:
-      file: build-output/concourse-db-migration-*.jar
+      file: build-output/{{project-name}}-*.jar
   - put: version
     params:
       file: version/number
 
 - name: deploy-dev
   plan:
-  - get: concourse-db-migration
+  - get: {{project-name}}
     passed: [build]
-  - get: concourse-db-migration-artifacts
+  - get: {{project-name}}-artifacts
     trigger: false
     passed: [build]
+  - task: migrate database
+    file: {{project-name}}/ci/migrateDatabase.yml
+    params:
+      CF_API_URL: {{cf-api-url}}
+      CF_USERNAME: {{cf-username}}
+      CF_PASSWORD: {{cf-password}}
+      CF_ORG: {{cf-org}}
+      CF_SPACE: {{cf-space}}
+      MYSQL_IP: {{mysql-ip}}
+      DATABASE_NAME: {{database-name}}
+      DATABASE_USERNAME: {{database-username}}
+      DATABASE_PASSWORD: {{database-password}}
   - put: dev-deployment
     params:
-      manifest: concourse-db-migration/manifest-dev.yml
-      path: concourse-db-migration-artifacts/concourse-db-migration-*.jar
+      manifest: {{project-name}}/manifest-dev.yml
+      path: {{project-name}}-artifacts/{{project-name}}-*.jar
